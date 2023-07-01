@@ -1,41 +1,45 @@
-from argparse import ArgumentParser
-from tqdm import tqdm
-from google.cloud import speech
 from concurrent.futures import ThreadPoolExecutor
+from argparse import ArgumentParser
+from google.cloud import speech, storage
 
-def transcribe(i):
+BUCKET_NAME = "yo-personal"
+LANGUAGE_CODE = "ja-JP"
+
+def transcribe(uri: str):
     client = speech.SpeechClient()
-    index = str(i).zfill(3)
-
-    uri = f"gs://yo-personal/speech-to-text/2023-06-28/split_audio/out{index}.flac"
-
     audio = speech.RecognitionAudio(uri=uri)
 
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.FLAC,
         sample_rate_hertz=44100,
-        language_code="ja-JP",
+        language_code=LANGUAGE_CODE,
     )
 
     operation = client.long_running_recognize(config=config, audio=audio)
+    file_name = uri.split('/')[-1].split('.')[0]
 
-    print("Waiting for operation to complete...")
+    print(f"Waiting for operation for audio {file_name} to complete...")
     response = operation.result(timeout=3600)
 
-    # Open a text file in write mode
-    with open(f"./transcript/{index}.txt", "w") as transcript_file:
+    with open(f"./transcript/{file_name}.txt", "w") as transcript_file:
         for result in response.results:
-            # Write each transcript to the text file
-            transcript_file.write("Transcript: {}\n".format(result.alternatives[0].transcript))
+            transcript_file.write(result.alternatives[0].transcript + "\n")
 
-def main(start: int, end: int):
-    with ThreadPoolExecutor(max_workers=5) as executor:  # Adjust max_workers as needed
-        list(tqdm(executor.map(transcribe, range(start, end + 1)), total=end-start+1))
+
+def list_blob_uris(file_name: str):
+    storage_client = storage.Client()
+    for blob in storage_client.list_blobs(BUCKET_NAME):
+        if blob.name.startswith(f"speech-to-text/{file_name}/split_audio/"):
+            yield blob.name
+
+def main(file_name: str):    
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        for blob_name in list_blob_uris(file_name):
+            uri = f"gs://{BUCKET_NAME}/{blob_name}"
+            executor.submit(transcribe, uri)
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--start", type=int, default=1)
-    parser.add_argument("--end", type=int, default=1)
+    parser.add_argument("--file_name", type=str, help="URI of the audio file on GCS")
     args = parser.parse_args()
-    main(args.start, args.end)
-
+    main(args.file_name)
