@@ -6,3 +6,4 @@ transcript
 *.mp3
 .DS_Store
 transcripts/*
+.env

@@ -56,8 +56,7 @@ def main(file_name: str):
             uri = f"gs://{BUCKET_NAME}/{blob_name}"
             executor.submit(transcribe, uri)
     combine_transcripts()
-    transcript_file = "combined_transcript.txt"
-    upload_to_bucket(BUCKET_NAME, transcript_file, f"speech-to-text/{file_name}/{transcript_file}")
+    upload_to_bucket(BUCKET_NAME, "combined_transcript.txt", f"speech-to-text/{file_name}/combined_transcript.txt")
     print("Done!")
 
 if __name__ == "__main__":
