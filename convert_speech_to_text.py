@@ -1,4 +1,3 @@
-import os
 from glob import glob
 from concurrent.futures import ThreadPoolExecutor
 from argparse import ArgumentParser
@@ -31,7 +30,7 @@ def transcribe(uri: str):
 def list_blob_uris(file_name: str):
     storage_client = storage.Client()
     for blob in storage_client.list_blobs(BUCKET_NAME):
-        if blob.name.startswith(f"speech-to-text/{file_name}/split_audio/"):
+        if blob.name.startswith(f"speech-to-text/{file_name}/split_audio/") and blob.name.endswith(".flac"):
             yield blob.name
 
 def upload_to_bucket(bucket_name: str, source_file_name: str, destination_blob_name: str):
@@ -46,10 +45,10 @@ def combine_transcripts():
     transcripts = glob("./transcripts/*.txt")
     transcripts.sort()
     with open("combined_transcript.txt", "w") as f:
-        for i, transcript in enumerate(transcripts):
+        for transcript in transcripts:
             with open(transcript, "r") as t:
                 transcript = t.read()
-            f.write(str(i) + ": " + transcript + "\n")
+            f.write(transcript + "\n")
  
 def main(file_name: str):    
     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -58,7 +57,7 @@ def main(file_name: str):
             executor.submit(transcribe, uri)
     combine_transcripts()
     transcript_file = "combined_transcript.txt"
-    upload_to_bucket(BUCKET_NAME, transcript_file, f"transcripts/{os.path.basename(transcript_file)}")
+    upload_to_bucket(BUCKET_NAME, transcript_file, f"speech-to-text/{file_name}/{transcript_file}")
     print("Done!")
 
 if __name__ == "__main__":
