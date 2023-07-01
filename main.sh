@@ -15,3 +15,7 @@ echo "Done uploading to cloud storage!"
 echo "Running speech-to-text on each chunk..."
 python -m convert_speech_to_text --file_name $1
 echo "Done running speech-to-text on each chunk!"
+
+# summarise
+echo "\n[Summary]"
+python -m summarise
