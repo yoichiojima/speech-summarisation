@@ -20,5 +20,6 @@ python -m convert_speech_to_text --file_name $1
 echo "Done running speech-to-text on each chunk!"
 
 # summarise
-echo "\n[Summary]"
+echo ""
+echo "[Summary]"
 python -m summarise
