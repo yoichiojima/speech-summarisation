@@ -1,3 +1,5 @@
+import os
+from glob import glob
 from concurrent.futures import ThreadPoolExecutor
 from argparse import ArgumentParser
 from google.cloud import speech, storage
@@ -21,7 +23,7 @@ def transcribe(uri: str):
     print(f"Waiting for operation for audio {file_name} to complete...")
     response = operation.result(timeout=3600)
 
-    with open(f"./transcript/{file_name}.txt", "w") as transcript_file:
+    with open(f"./transcripts/{file_name}.txt", "w") as transcript_file:
         for result in response.results:
             transcript_file.write(result.alternatives[0].transcript + "\n")
 
@@ -32,11 +34,32 @@ def list_blob_uris(file_name: str):
         if blob.name.startswith(f"speech-to-text/{file_name}/split_audio/"):
             yield blob.name
 
+def upload_to_bucket(bucket_name: str, source_file_name: str, destination_blob_name: str):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(source_file_name)
+    print(f"File {source_file_name} uploaded to {destination_blob_name}.")
+
+
+def combine_transcripts():
+    transcripts = glob("./transcripts/*.txt")
+    transcripts.sort()
+    with open("combined_transcript.txt", "w") as f:
+        for i, transcript in enumerate(transcripts):
+            with open(transcript, "r") as t:
+                transcript = t.read()
+            f.write(str(i) + ": " + transcript + "\n")
+ 
 def main(file_name: str):    
     with ThreadPoolExecutor(max_workers=5) as executor:
         for blob_name in list_blob_uris(file_name):
             uri = f"gs://{BUCKET_NAME}/{blob_name}"
             executor.submit(transcribe, uri)
+    combine_transcripts()
+    transcript_file = "combined_transcript.txt"
+    upload_to_bucket(BUCKET_NAME, transcript_file, f"transcripts/{os.path.basename(transcript_file)}")
+    print("Done!")
 
 if __name__ == "__main__":
     parser = ArgumentParser()
