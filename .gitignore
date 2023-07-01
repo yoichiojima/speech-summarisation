@@ -1,2 +1,6 @@
 __pycache__
 .venv
+split_audio
+split_audio_mp3
+transcript
+*.mp3
