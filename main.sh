@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# remove all files from bucket
+gsutil rm -r gs://yo-personal/speech-to-text/$1
+
 # split audio into 100 second chunks
 echo "Splitting audio into 100 second chunks..."
 ffmpeg -i $1 -filter:a "atempo=0.5" -ac 1 -f segment -segment_time 100 split_audio/chunk%03d.flac # for analysis
